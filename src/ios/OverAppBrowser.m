@@ -7,24 +7,10 @@
 //
 
 #import "OverAppBrowser.h"
-#import <Cordova/CDVJSON.h>
 
 @implementation OverAppBrowser
 
 @synthesize overWebView, callbackId, currentUrl;
-
-
--(CDVPlugin*) initWithWebView:(UIWebView*)theWebView
-{
-    self = (OverAppBrowser*)[super initWithWebView:theWebView];
-    
-    if (self != nil) {
-        _callbackIdPattern = nil;
-    }
-
-    return self;
-}
-
 
 #pragma mark -
 #pragma mark OverAppBrowser
@@ -32,18 +18,18 @@
 - (void) open:(CDVInvokedUrlCommand *)command
 {
     NSArray* arguments = [command arguments];
-    
+
     self.callbackId = command.callbackId;
     NSUInteger argc = [arguments count];
-    
+
     if (argc < 4) { // at a minimum we need x origin, y origin and width...
-        return; 
+        return;
     }
-    
+
     if (self.overWebView != NULL) {
         [self browserExit]; // reload it as parameters may have changed
     }
-    
+
     CGFloat originx,originy,width;
     CGFloat height = 30;
     NSString *url = [arguments objectAtIndex:0];
@@ -57,11 +43,11 @@
     if (argc > 4) {
         isAutoFadeIn = [[arguments objectAtIndex:5] boolValue];
     }
-    
+
     CGRect viewRect = CGRectMake(
-                                 originx, 
-                                 originy, 
-                                 width, 
+                                 originx,
+                                 originy,
+                                 width,
                                  height
                                  );
 
@@ -80,10 +66,10 @@
   self.overWebView.opaque = NO;
   self.overWebView.scalesPageToFit = NO;
   self.overWebView.userInteractionEnabled = YES;
-    
+
     self.overWebView.alpha = 0;
-    
-    
+
+
 
   [self.webView.superview addSubview:self.overWebView];
 
@@ -92,7 +78,7 @@
 - (void)fade:(CDVInvokedUrlCommand *)command {
     NSArray* arguments = [command arguments];
     NSUInteger argc = [arguments count];
-    
+
     if (argc < 2) {
         return;
     }
@@ -109,17 +95,17 @@
 
 - (void)resize:(CDVInvokedUrlCommand *)command {
     NSArray* arguments = [command arguments];
-    
+
     NSUInteger argc = [arguments count];
-    
+
     if (argc < 3) { // at a minimum we need x origin, y origin and width...
         return;
     }
-    
+
     if (self.overWebView == NULL) {
         return; // not yet created
     }
-    
+
     CGFloat originx,originy,width;
     CGFloat height = 30;
     originx = [[arguments objectAtIndex:0] floatValue];
@@ -128,14 +114,14 @@
     if (argc > 3) {
         height = [[arguments objectAtIndex:3] floatValue];
     }
-    
+
     CGRect viewRect = CGRectMake(
                                  originx,
                                  originy,
                                  width,
                                  height
                                  );
-    
+
     self.overWebView.frame = viewRect;
 }
 
@@ -175,21 +161,21 @@
 {
     NSURL* url = request.URL;
     BOOL isTopLevelNavigation = [request.URL isEqual:[request mainDocumentURL]];
-    
+
     if (isTopLevelNavigation) {
         self.currentUrl = request.URL;
     }
-    
+
     // See if the url uses the 'gap-iab' protocol. If so, the host should be the id of a callback to execute,
     // and the path, if present, should be a JSON-encoded value to pass to the callback.
     if ([[url scheme] isEqualToString:@"gap-iab"]) {
         NSString* scriptCallbackId = [url host];
         CDVPluginResult* pluginResult = nil;
-        
+
         if ([self isValidCallbackId:scriptCallbackId]) {
             NSString* scriptResult = [url path];
             NSError* __autoreleasing error = nil;
-            
+
             // The message should be a JSON-encoded array of the result of the script which executed.
             if ((scriptResult != nil) && ([scriptResult length] > 1)) {
                 scriptResult = [scriptResult substringFromIndex:1];
@@ -210,10 +196,10 @@
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK
                                                       messageAsDictionary:@{@"type":@"loadstart", @"url":[url absoluteString]}];
         [pluginResult setKeepCallback:[NSNumber numberWithBool:YES]];
-        
+
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
     }
-    
+
     return YES;
 }
 
@@ -231,13 +217,13 @@
         if (isAutoFadeIn) {
             [self fadeToAlpha:1 duration:1.0];
         }
-        
+
         // TODO: It would be more useful to return the URL the page is actually on (e.g. if it's been redirected).
         NSString* url = [self.currentUrl absoluteString];
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK
                                                       messageAsDictionary:@{@"type":@"loadstop", @"url":url}];
         [pluginResult setKeepCallback:[NSNumber numberWithBool:YES]];
-        
+
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
     }
 }
@@ -259,7 +245,7 @@
         // Create an iframe bridge in the new document to communicate with the CDVInAppBrowserViewController
         [self.overWebView stringByEvaluatingJavaScriptFromString:@"(function(d){var e = _cdvIframeBridge = d.createElement('iframe');e.style.display='none';d.body.appendChild(e);})(document)"];
     }
-    
+
     if (jsWrapper != nil) {
         NSData* jsonData = [NSJSONSerialization dataWithJSONObject:@[source] options:0 error:nil];
         NSString* sourceArrayString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
@@ -276,7 +262,7 @@
 - (void)injectScriptCode:(CDVInvokedUrlCommand*)command
 {
     NSString* jsWrapper = nil;
-    
+
     if ((command.callbackId != nil) && ![command.callbackId isEqualToString:@"INVALID"]) {
         jsWrapper = [NSString stringWithFormat:@"_cdvIframeBridge.src='gap-iab://%@/'+encodeURIComponent(JSON.stringify([eval(%%@)]));", command.callbackId];
     }
@@ -286,7 +272,7 @@
 - (void)injectScriptFile:(CDVInvokedUrlCommand*)command
 {
     NSString* jsWrapper;
-    
+
     if ((command.callbackId != nil) && ![command.callbackId isEqualToString:@"INVALID"]) {
         jsWrapper = [NSString stringWithFormat:@"(function(d) { var c = d.createElement('script'); c.src = %%@; c.onload = function() { _cdvIframeBridge.src='gap-iab://%@'; }; d.body.appendChild(c); })(document)", command.callbackId];
     } else {
@@ -298,7 +284,7 @@
 - (void)injectStyleCode:(CDVInvokedUrlCommand*)command
 {
     NSString* jsWrapper;
-    
+
     if ((command.callbackId != nil) && ![command.callbackId isEqualToString:@"INVALID"]) {
         jsWrapper = [NSString stringWithFormat:@"(function(d) { var c = d.createElement('style'); c.innerHTML = %%@; c.onload = function() { _cdvIframeBridge.src='gap-iab://%@'; }; d.body.appendChild(c); })(document)", command.callbackId];
     } else {
@@ -310,7 +296,7 @@
 - (void)injectStyleFile:(CDVInvokedUrlCommand*)command
 {
     NSString* jsWrapper;
-    
+
     if ((command.callbackId != nil) && ![command.callbackId isEqualToString:@"INVALID"]) {
         jsWrapper = [NSString stringWithFormat:@"(function(d) { var c = d.createElement('link'); c.rel='stylesheet'; c.type='text/css'; c.href = %%@; c.onload = function() { _cdvIframeBridge.src='gap-iab://%@'; }; d.body.appendChild(c); })(document)", command.callbackId];
     } else {
@@ -337,7 +323,7 @@
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
         self.callbackId = nil;
     }
-    
+
     [self.overWebView loadHTMLString:@"" baseURL:nil];
     [self.overWebView stopLoading];
     [self.overWebView setDelegate:nil];
