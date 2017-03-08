@@ -514,6 +514,15 @@ public class OverAppBrowser extends CordovaPlugin {
         final CordovaWebView thatWebView = this.webView;
         final HashMap<String, Integer> webViewParams = params;
 
+        // Destroy the existing WebView if any
+        if (this.inAppWebView != null) {
+            this.inAppWebView.loadUrl("about:blank");
+            this.inAppWebView.clearHistory();
+            this.inAppWebView.clearView();
+            this.inAppWebView.destroy();
+            this.inAppWebView = null;
+        }
+
         // Create dialog in new thread
         Runnable runnable = new Runnable() {
             /**
@@ -544,7 +553,7 @@ public class OverAppBrowser extends CordovaPlugin {
                 wlp.gravity = Gravity.TOP | Gravity.LEFT;
                 wlp.width = this.dpToPixels(webViewParams.get("width"));
                 wlp.height = this.dpToPixels(webViewParams.get("height"));
-                wlp.dimAmount=0.5f; 
+                wlp.dimAmount=0.5f;
                 window.setFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL);
                 window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
@@ -584,7 +593,7 @@ public class OverAppBrowser extends CordovaPlugin {
                 inAppWebView.getSettings().setUseWideViewPort(true);
                 inAppWebView.requestFocus();
                 inAppWebView.requestFocusFromTouch();
-               
+
                 WindowManager.LayoutParams lp = new WindowManager.LayoutParams();
                 lp.copyFrom(dialog.getWindow().getAttributes());
                 lp.x = this.dpToPixels(webViewParams.get("x"));
@@ -656,8 +665,8 @@ public class OverAppBrowser extends CordovaPlugin {
             public void run() {
                 // Window window = childView.getWindow();
                 // WindowManager.LayoutParams wlp = window.getAttributes();
-               
-                
+
+
                 // wlp.flags = WindowManager.LayoutParams.FLAG_DIM_BEHIND;
                 // wlp.dimAmount = toAlpha;
                 // window.setAttributes(wlp);
