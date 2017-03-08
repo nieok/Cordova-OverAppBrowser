@@ -386,6 +386,12 @@ public class OverAppBrowser extends CordovaPlugin {
                 childView.setWebViewClient(new WebViewClient() {
                     // NB: wait for about:blank before dismissing
                     public void onPageFinished(WebView view, String url) {
+                        // Destroy the existing WebView if any
+                        if (view != null) {
+                            view.clearHistory();
+                            view.clearView();
+                            view.destroy();
+                        }
                         if (dialog != null) {
                             dialog.dismiss();
                         }
@@ -521,6 +527,12 @@ public class OverAppBrowser extends CordovaPlugin {
             this.inAppWebView.clearView();
             this.inAppWebView.destroy();
             this.inAppWebView = null;
+        }
+
+        // Remove the existing dialog if any
+        if (this.dialog != null) {
+            this.dialog.dismiss();
+            this.dialog = null;
         }
 
         // Create dialog in new thread
