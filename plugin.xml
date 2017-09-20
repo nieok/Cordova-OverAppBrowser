@@ -2,7 +2,7 @@
 
 <plugin xmlns="http://www.phonegap.com/ns/plugins/1.0"
         id="com.lesfrancschatons.cordova.plugins.overappbrowser"
-        version="1.2.0">
+        version="1.2.1">
 
     <name>Over App Browser</name>
 
@@ -16,7 +16,7 @@
         <engine name="cordova" version=">=3.0.0" />
     </engines>
 
-    
+
 
     <!-- ios -->
     <platform name="ios">
@@ -40,7 +40,7 @@
         </js-module>
 
         <config-file target="res/xml/config.xml" parent="/*">
-            <feature name="OverAppBrowser"> 
+            <feature name="OverAppBrowser">
                 <param name="android-package" value="com.lesfrancschatons.cordova.plugins.overappbrowser.OverAppBrowser"/>
             </feature>
         </config-file>
