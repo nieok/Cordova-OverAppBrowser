@@ -7,18 +7,18 @@
 //
 
 #import <Cordova/CDVPlugin.h>
+#import <WebKit/WebKit.h>
 
-
-@interface OverAppBrowser : CDVPlugin <UIWebViewDelegate> {
+@interface OverAppBrowser : CDVPlugin <WKNavigationDelegate> {
 	NSString* callbackId;
-	UIWebView* overWebView;
+	WKWebView* overWebView;
     NSURL* currentUrl;
     BOOL isAutoFadeIn;
     BOOL _injectedIframeBridge;
 }
 
 @property (nonatomic, copy) NSString* callbackId;
-@property (nonatomic, retain) UIWebView* overWebView;
+@property (nonatomic, retain) WKWebView* overWebView;
 @property (nonatomic, retain) NSURL* currentUrl;
 
 @property (nonatomic, copy) NSRegularExpression *callbackIdPattern;

@@ -35,6 +35,7 @@
     NSString *url = [arguments objectAtIndex:0];
     originx = [[arguments objectAtIndex:1] floatValue];
     originy = [[arguments objectAtIndex:2] floatValue];
+    originy += [UIApplication sharedApplication].statusBarFrame.size.height;
     width = [[arguments objectAtIndex:3] floatValue];
     isAutoFadeIn = false;
     if (argc > 3) {
@@ -50,29 +51,26 @@
                                  width,
                                  height
                                  );
+    
+    WKWebViewConfiguration *theConfiguration = [[WKWebViewConfiguration alloc] init];
+    self.overWebView = [[WKWebView alloc] initWithFrame:viewRect configuration:theConfiguration];
+    NSURL *nsurl=[NSURL URLWithString:url];
+    NSURLRequest *nsrequest=[NSURLRequest requestWithURL:nsurl];
 
-  self.overWebView = [[UIWebView alloc] initWithFrame:viewRect];
-  NSURL *nsurl=[NSURL URLWithString:url];
-  NSURLRequest *nsrequest=[NSURLRequest requestWithURL:nsurl];
-
-  [self.overWebView loadRequest:nsrequest];
-  self.overWebView.backgroundColor = [UIColor clearColor];
-  self.overWebView.scrollView.bounces = NO;
-  self.overWebView.clearsContextBeforeDrawing = YES;
-  self.overWebView.clipsToBounds = YES;
-    self.overWebView.delegate = self;
-  self.overWebView.contentMode = UIViewContentModeScaleToFill;
-  self.overWebView.multipleTouchEnabled = YES;
-  self.overWebView.opaque = NO;
-  self.overWebView.scalesPageToFit = NO;
-  self.overWebView.userInteractionEnabled = YES;
+    [self.overWebView loadRequest:nsrequest];
+    self.overWebView.backgroundColor = [UIColor clearColor];
+    self.overWebView.scrollView.bounces = NO;
+    self.overWebView.clearsContextBeforeDrawing = YES;
+    self.overWebView.clipsToBounds = YES;
+    self.overWebView.navigationDelegate = self;
+    self.overWebView.contentMode = UIViewContentModeScaleToFill;
+    self.overWebView.multipleTouchEnabled = YES;
+    self.overWebView.opaque = NO;
+    self.overWebView.userInteractionEnabled = YES;
 
     self.overWebView.alpha = 0;
 
-
-
-  [self.webView.superview addSubview:self.overWebView];
-
+    [self.webView.superview addSubview:self.overWebView];
 }
 
 - (void)fade:(CDVInvokedUrlCommand *)command {
@@ -110,6 +108,7 @@
     CGFloat height = 30;
     originx = [[arguments objectAtIndex:0] floatValue];
     originy = [[arguments objectAtIndex:1] floatValue];
+    originy += [UIApplication sharedApplication].statusBarFrame.size.height;
     width = [[arguments objectAtIndex:2] floatValue];
     if (argc > 3) {
         height = [[arguments objectAtIndex:3] floatValue];
@@ -143,29 +142,29 @@
 }
 
 /**
- * The iframe bridge provided for the InAppBrowser is capable of executing any oustanding callback belonging
- * to the InAppBrowser plugin. Care has been taken that other callbacks cannot be triggered, and that no
- * other code execution is possible.
- *
- * To trigger the bridge, the iframe (or any other resource) should attempt to load a url of the form:
- *
- * gap-iab://<callbackId>/<arguments>
- *
- * where <callbackId> is the string id of the callback to trigger (something like "InAppBrowser0123456789")
- *
- * If present, the path component of the special gap-iab:// url is expected to be a URL-escaped JSON-encoded
- * value to pass to the callback. [NSURL path] should take care of the URL-unescaping, and a JSON_EXCEPTION
- * is returned if the JSON is invalid.
- */
-- (BOOL)webView:(UIWebView*)theWebView shouldStartLoadWithRequest:(NSURLRequest*)request navigationType:(UIWebViewNavigationType)navigationType
+* The iframe bridge provided for the InAppBrowser is capable of executing any oustanding callback belonging
+* to the InAppBrowser plugin. Care has been taken that other callbacks cannot be triggered, and that no
+* other code execution is possible.
+*
+* To trigger the bridge, the iframe (or any other resource) should attempt to load a url of the form:
+*
+* gap-iab://<callbackId>/<arguments>
+*
+* where <callbackId> is the string id of the callback to trigger (something like "InAppBrowser0123456789")
+*
+* If present, the path component of the special gap-iab:// url is expected to be a URL-escaped JSON-encoded
+* value to pass to the callback. [NSURL path] should take care of the URL-unescaping, and a JSON_EXCEPTION
+* is returned if the JSON is invalid.
+*/
+- (void)webView:(WKWebView *)webView decidePolicyForNavigationAction:(WKNavigationAction *)navigationAction decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler
 {
-    NSURL* url = request.URL;
-    BOOL isTopLevelNavigation = [request.URL isEqual:[request mainDocumentURL]];
+    NSURL* url = navigationAction.request.URL;
+    BOOL isTopLevelNavigation = [url isEqual:[navigationAction.request mainDocumentURL]];
 
     if (isTopLevelNavigation) {
-        self.currentUrl = request.URL;
+        self.currentUrl = url;
     }
-
+    
     // See if the url uses the 'gap-iab' protocol. If so, the host should be the id of a callback to execute,
     // and the path, if present, should be a JSON-encoded value to pass to the callback.
     if ([[url scheme] isEqualToString:@"gap-iab"]) {
@@ -189,46 +188,49 @@
                 pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsArray:@[]];
             }
             [self.commandDelegate sendPluginResult:pluginResult callbackId:scriptCallbackId];
-            return NO;
+            
+            decisionHandler(WKNavigationActionPolicyCancel);
+            return;
         }
     } else if ((self.callbackId != nil) && isTopLevelNavigation) {
         // Send a loadstart event for each top-level navigation (includes redirects).
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK
-                                                      messageAsDictionary:@{@"type":@"loadstart", @"url":[url absoluteString]}];
+                                                     messageAsDictionary:@{@"type":@"loadstart", @"url":[url absoluteString]}];
         [pluginResult setKeepCallback:[NSNumber numberWithBool:YES]];
 
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
     }
-
-    return YES;
+    
+    decisionHandler(WKNavigationActionPolicyAllow);
 }
 
-- (void)webViewDidStartLoad:(UIWebView*)theWebView
+- (void)webView:(WKWebView *)webView didStartProvisionalNavigation:(WKNavigation *)navigation
 {
     _injectedIframeBridge = NO;
 }
 
-- (void)webViewDidFinishLoad:(UIWebView*)theWebView
+- (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation
 {
     if (self.overWebView.isLoading) {
         return;
     }
+    
     if (self.callbackId != nil && self.currentUrl != nil) {
+        NSURL* url = webView.URL;
+        
         if (isAutoFadeIn) {
             [self fadeToAlpha:1 duration:1.0];
         }
 
-        // TODO: It would be more useful to return the URL the page is actually on (e.g. if it's been redirected).
-        NSString* url = [self.currentUrl absoluteString];
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK
-                                                      messageAsDictionary:@{@"type":@"loadstop", @"url":url}];
+                                                      messageAsDictionary:@{@"type":@"loadstop", @"url":[url absoluteString]}];
         [pluginResult setKeepCallback:[NSNumber numberWithBool:YES]];
 
         [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
     }
 }
 
-
+// XXX: Disabled because couldn't be added at runtime with WKWebView
 // This is a helper method for the inject{Script|Style}{Code|File} API calls, which
 // provides a consistent method for injecting JavaScript code into the document.
 //
@@ -237,26 +239,9 @@
 // '%@' marker).
 //
 // If no wrapper is supplied, then the source string is executed directly.
-
 - (void)injectDeferredObject:(NSString*)source withWrapper:(NSString*)jsWrapper
 {
-    if (!_injectedIframeBridge) {
-        _injectedIframeBridge = YES;
-        // Create an iframe bridge in the new document to communicate with the CDVInAppBrowserViewController
-        [self.overWebView stringByEvaluatingJavaScriptFromString:@"(function(d){var e = _cdvIframeBridge = d.createElement('iframe');e.style.display='none';d.body.appendChild(e);})(document)"];
-    }
 
-    if (jsWrapper != nil) {
-        NSData* jsonData = [NSJSONSerialization dataWithJSONObject:@[source] options:0 error:nil];
-        NSString* sourceArrayString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
-        if (sourceArrayString) {
-            NSString* sourceString = [sourceArrayString substringWithRange:NSMakeRange(1, [sourceArrayString length] - 2)];
-            NSString* jsToInject = [NSString stringWithFormat:jsWrapper, sourceString];
-            [self.overWebView stringByEvaluatingJavaScriptFromString:jsToInject];
-        }
-    } else {
-        [self.overWebView stringByEvaluatingJavaScriptFromString:source];
-    }
 }
 
 - (void)injectScriptCode:(CDVInvokedUrlCommand*)command
@@ -326,7 +311,7 @@
 
     [self.overWebView loadHTMLString:@"" baseURL:nil];
     [self.overWebView stopLoading];
-    [self.overWebView setDelegate:nil];
+    [self.overWebView setNavigationDelegate:nil];
     [self.overWebView removeFromSuperview];
     self.overWebView = nil;
     self.currentUrl = nil;
