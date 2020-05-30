@@ -8,6 +8,8 @@
 
 #import "OverAppBrowser.h"
 
+#define IAB_BRIDGE_NAME @"cordova_iab"
+
 @implementation OverAppBrowser
 
 @synthesize overWebView, callbackId, currentUrl;
@@ -241,7 +243,35 @@
 // If no wrapper is supplied, then the source string is executed directly.
 - (void)injectDeferredObject:(NSString*)source withWrapper:(NSString*)jsWrapper
 {
+    // Ensure a message handler bridge is created to communicate with the CDVWKInAppBrowserViewController
+    [self evaluateJavaScript: [NSString stringWithFormat:@"(function(w){if(!w._cdvMessageHandler) {w._cdvMessageHandler = function(id,d){w.webkit.messageHandlers.%@.postMessage({d:d, id:id});}}})(window)", IAB_BRIDGE_NAME]];
+    
+    if (jsWrapper != nil) {
+        NSData* jsonData = [NSJSONSerialization dataWithJSONObject:@[source] options:0 error:nil];
+        NSString* sourceArrayString = [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding];
+        if (sourceArrayString) {
+            NSString* sourceString = [sourceArrayString substringWithRange:NSMakeRange(1, [sourceArrayString length] - 2)];
+            NSString* jsToInject = [NSString stringWithFormat:jsWrapper, sourceString];
+            [self evaluateJavaScript:jsToInject];
+        }
+    } else {
+        [self evaluateJavaScript:source];
+    }
+}
 
+
+//Synchronus helper for javascript evaluation
+- (void)evaluateJavaScript:(NSString *)script {
+    __block NSString* _script = script;
+    [self.overWebView evaluateJavaScript:script completionHandler:^(id result, NSError *error) {
+        if (error == nil) {
+            if (result != nil) {
+                NSLog(@"%@", result);
+            }
+        } else {
+            NSLog(@"evaluateJavaScript error : %@ : %@", error.localizedDescription, _script);
+        }
+    }];
 }
 
 - (void)injectScriptCode:(CDVInvokedUrlCommand*)command
